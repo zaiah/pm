@@ -1,11 +1,12 @@
 ## pm
 
-Really simple project management tool for Bash.
+### Summary
+pm is a really simple project management tool for Bash.  It categorizes and holds lots of info about your projects.  It can tell you when you last accessed work, when you last committed work, tell you what history was run for your project, and more.  It's so cool, you should tell your friends.
 
+You can open new terminal windows or hijack your current ones to hold environment variables specific for your application.   You can also contain aliases and other custom functions in .rc files specifically tailored for your project.  Additionally, pm's database will keep track of where all of project's important files so you don't have to worry about losing anything.
 
-	pm categorizes and holds lots of info about your projects.  It will tell you when you last accessed work, when you last committed work, tell you what history was run for your project, and more.  It's so cool, you should tell your friends.
-
-## Commands
+### Commands
+Command list is below.   If you've installed pm on your system, just run `man pm` to get the same thing.
 - --first-run           
 Run for the first time.
 - --setup               
@@ -51,7 +52,7 @@ Create the project at <dir>
 - -v | --verbose        
 Be verbose in output.
 
-## Copyright
-I wrote this.  All by myself.  Me, bitches.  Me.  :)
+### Copyright & Support
+Contact Antonio Collins (ramar.collins@gmail.com) for more.
 
 
