@@ -28,7 +28,6 @@ IFS='
 BINDIR="$(dirname "$(readlink -f $0)")"
 source "$BINDIR/files/__config.sh"
 
-
 #########################
 # Usage message.
 #########################
@@ -40,34 +39,33 @@ Usage: ./project
 		[ -cknor ] [ -t N ] <project-name>
 
 Options:
---first-run           Run for the first time.
---setup               Setup globals.
---install <dir>       Install $PROGRAM to <dir>.
---uninstall           Uninstalls $PROGRAM according to user logged in.
---as <user>           Run this as a particular user. 
--d | --editor         Set an editor when trying to configure.
--f | --hooks          Edit hooks for a certain project.
--p | --progress       Get the progress of a project.  (May use curses)
--m | 
- --file-manager <prg> Use <prg> as a file manager for this project.
--t | --terminals <N>  Use <N> terminals when opening or configuring a 
-                      project.
--c | 
- --configure <name>   Configure project referenced by <name>.
--l | --list           List all projects.
--? | --last           List what we were last doing.
--k | --kill <name>    Kill all open instances of project <name>.
--s | --spawn <int>    Open <int> number of terminal windows.
--n | --new <name>     Create a new project called <name>.
--r | --remove <name>  Remove project referenced by <name>.
--o | --open <name>    Open project referenced by <name>.
--u | 
- --unregister <name>  Remove project referenced by <name> from $PROGRAM's
-                      database.
--g | 
- --register <name>    Add some project to $PROGRAM's database.
--a | --at <dir>       Create the project at <dir>
--v | --verbose        Be verbose in output.
+--first-run                 Run for the first time.
+--setup                     Setup globals.
+--install <dir>             Install $PROGRAM to <dir>.
+--uninstall                 Uninstalls $PROGRAM according to user logged in.
+--as <user>                 Run this as a particular user. 
+-d | --editor               Set an editor when trying to configure.
+-f | --hooks                Edit hooks for a certain project.
+-p | --progress             Get the progress of a project.  (May use curses)
+-m |  --file-manager <prg>  Use <prg> as a file manager for this project.
+-t | --terminals <N>        Use <N> terminals when opening or configuring a 
+                            project.
+-c | --configure <name>     Configure project referenced by <name>.
+-l | --list                 List all projects.
+-? | --last <int>           List last <int> projects that have been worked on.
+                            (Default is 10)
+-k | --kill <name>          Kill all open instances of project <name>.
+-s | --spawn <int>          Open <int> number of terminal windows.
+-n | --new <name>           Create a new project called <name>.
+-w | --checklist <name>     Create a new project called <name>.
+-r | --remove <name>        Remove project referenced by <name>.
+-o | --open <name>          Open project referenced by <name>.
+-u | --unregister <name>    Remove project referenced by <name> from $PROGRAM's
+                            database.
+-g | --register <name>      Add some project to $PROGRAM's database.
+-e | --at <dir>             Create the project at <dir>
+-a | --alias <name>	       Create an alias for the project at hand.
+-v | --verbose              Be verbose in output.
 "
 
 
@@ -252,8 +250,15 @@ spawn() {
 	if [ ! -z "$PROJECT_NAME" ] 
 	then
 		# Load project settings.
+		# WHERE_CLAUSE="WHERE project_name = '$PROJECT_NAME' AND who_added = '$USER_NAME'"
+		# PROJECT_DIR=$($__SQLITE $__DB "SELECT project_dir FROM project_description $WHERE_CLAUSE;")
 		WHERE_CLAUSE="WHERE project_name = '$PROJECT_NAME' AND who_added = '$USER_NAME'"
 		PROJECT_DIR=$($__SQLITE $__DB "SELECT project_dir FROM project_description $WHERE_CLAUSE;")
+
+		# ...
+		#if [ ! -d "$PROJECT_DIR" ]
+		#then
+		#fi
 
 		# Load your term settings. (These can go in another file.)
 		ALIAS_FILE=$ALIAS_DIR/${PROJECT_NAME}.sh
@@ -376,6 +381,13 @@ case "$1" in
 		SETUP=true
 	;;
 
+	# Use an alias for a project. 
+	-a | --alias)
+		SET_ALIAS=true
+		shift
+		ALIAS_NAME="$1"
+	;;
+
 	--as)
 		shift
 		USERNAME="$1"
@@ -399,6 +411,12 @@ case "$1" in
 		EDITOR="$1"
 	;;
 
+	# Make a new checklist.
+	-w | --checklist)
+		shift
+		PROJECT_NAME="$1"	
+	;;
+
 	# Configure hooks from here.  Split by -f.	
 	-f | --hooks)
 		shift
@@ -411,15 +429,10 @@ case "$1" in
 		fi
 	;;
 
-	# Setup or open a project with $TERMS number of terminals.
-	-m | --file-manager)
-		USE_MGR=true 
+	# Use this option to change stuff.
+	-m | --modify)
 		shift
-		MGR_EXEC="$(which $1)"
-		if [ ! -z "$MGR_EXEC" ]
-		then
-			FILE_MGR="$MGR_EXEC"
-		fi	
+		PROJECT_NAME="$1"
 	;;
 
 	# Mass import
@@ -534,7 +547,7 @@ case "$1" in
 	;;
 
 	# Let pm know to set up the project at directory $PROJECT_DIR.
-	-a | --at)
+	-e | --at)
 		shift
 		PROJECT_DIR="$1"	
 	;;
@@ -640,6 +653,26 @@ DEFAULT_TERMS=2" > $DEFAULTS
 	exit 0
 fi
 
+
+# Set an alias for a project.s
+if [ ! -z "$SET_ALIAS" ]
+then
+	# Only proceed if we've got data.
+	WHERE_CLAUSE="WHERE project_name = '$PROJECT_NAME' AND who_added = '$USER_NAME'"
+	PROJECT_ID=$($__SQLITE $__DB "SELECT id FROM project_description $WHERE_CLAUSE;")
+
+	# Jungle! aaah!
+	if [ -z "$PROJECT_NAME" ] || [[ "$PROJECT_NAME" == '' ]]
+	then
+		echo "No project selected or no project by that name exists."
+		exit 1
+	else
+		# Add the record.	
+		$__SQLITE $__DB "INSERT INTO aliases VALUES ( null, '$PROJECT_ID', '$ALIAS_NAME' )"
+
+	fi
+	
+fi
 
 # Get a list of sites.
 if [ ! -z "$LIST_ALL" ]
@@ -777,14 +810,16 @@ fi
 
 
 # Get last 10 projects. 
-if [ ! -z "$GET_LAST" ]; then
+if [ ! -z "$GET_LAST" ] 
+then
 	if [ ! -z $LAST_LIMIT ] && (( $LAST_LIMIT == 1 )) 
 	then 
 		echo "Here is the last ${LAST_LIMIT} project you've handled via \`pm\`."
 	else
 		echo "Here are the last ${LAST_LIMIT-10} projects you've handled via \`pm\`."
 	fi	
- 
+
+	# SQL query for last projects.
 	LAST_TIMES=$($__SQLITE $__DB "SELECT 
 project_name, 
 project_dir, 
@@ -793,17 +828,30 @@ FROM project_description
 WHERE who_added = '$USER_NAME' 
 ORDER BY date_last_updated DESC LIMIT ${LAST_LIMIT-10};")
 
-	# Cycle through the last times.	
-	for G in ${LAST_TIMES[@]}
+	# Cycle through all elements and break them up. 
+	INC=0
+	NC=0
+	TC=0
+	declare -a PNAME
+	declare -a PTIME
+	for G in ${LAST_TIMES[@]} 
 	do
-		if [[ $(echo $G | awk -F '|' '{ print $3 }') == "" ]]
+		if [ $(( $INC % 2 )) -gt 0 ] 
 		then
-			printf "$G\n\n"
-			continue	
+			PTIME[$TC]="$G" 	# will break on non-unix machines...
+			TC=$(( $TC + 1 ))
 		else
-			printf $G | awk -F '|' '{ print "Project: " $1 " at: " $2 "\nWas last modified on: " $3  }'
-			printf "At: "
+			PNAME[$NC]=$G 		# will break on non-unix machines...
+			NC=$(( $NC + 1 ))
 		fi
+		INC=$(( $INC + 1 ))
+	done
+
+	# Finally list in proper order on a terminal.
+	for G in $(seq $(( ${#PTIME[@]} - 1 )) -1 0)
+	do
+		printf ${PNAME[$G]} | awk -F '|' '{ print "\n" $1 "\nLocated at: " $2 "\nWas last modified on: " $3  }'
+		printf "At: ${PTIME[$G]}\n"
 	done	
 fi 
 

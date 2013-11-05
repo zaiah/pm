@@ -9,6 +9,12 @@ CREATE TABLE tracker (
 	notes TEXT
 );
 
+CREATE TABLE aliases (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	pd_id INTEGER,		/* ID of project */
+	name TEXT			/* Alias name */
+);
+
 /* termsettings */
 CREATE TABLE termsettings (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,3 +78,18 @@ project_task TEXT,
 task_priority TEXT,		
 task_type TEXT
 );
+
+
+CREATE VIEW proj_and_alias AS
+	SELECT 
+		pd.project_name AS pname,
+		pd.text_desc AS pdesc,
+		pd.project_dir AS pdir,
+		pd.date_created AS pdc,
+		pd.date_last_updated AS pdm,
+		pd.who_added AS puser,
+		a.name AS alias
+	FROM
+		project_description AS pd
+	JOIN aliases AS A
+		pd.id = a.pd_id;
