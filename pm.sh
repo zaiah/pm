@@ -20,6 +20,8 @@
 # the fly.
 #================================================
 
+PROGRAM=pm
+
 # Constants
 IFS=' 
 '
@@ -44,10 +46,11 @@ Options:
 --install <dir>             Install $PROGRAM to <dir>.
 --uninstall                 Uninstalls $PROGRAM according to user logged in.
 --as <user>                 Run this as a particular user. 
+--file-manager <prg>        Use <prg> as a file manager for this project.
 -d | --editor               Set an editor when trying to configure.
 -f | --hooks                Edit hooks for a certain project.
 -p | --progress             Get the progress of a project.  (May use curses)
--m |  --file-manager <prg>  Use <prg> as a file manager for this project.
+-m | --modify               Update some project.
 -t | --terminals <N>        Use <N> terminals when opening or configuring a 
                             project.
 -c | --configure <name>     Configure project referenced by <name>.
@@ -65,7 +68,11 @@ Options:
 -g | --register <name>      Add some project to $PROGRAM's database.
 -e | --at <dir>             Create the project at <dir>
 -a | --alias <name>	       Create an alias for the project at hand.
+-z | --super                Create a collection of projects.  (Links each project 
+                            in a list to the directory that the superproject is in.)
+-y | --consisting-of <arg>  List for projects within super project.
 -v | --verbose              Be verbose in output.
+-h | --help                 Be verbose in output.
 "
 
 
@@ -393,6 +400,12 @@ case "$1" in
 		USERNAME="$1"
 	;;
 
+	-m|--modify)
+		MODIFY=true
+		shift
+		PROJECT_NAME="$1"
+	;;
+
 	# Install systemwide.
 	-i | --install)  
 		INSTALL=true
@@ -418,7 +431,7 @@ case "$1" in
 	;;
 
 	# Configure hooks from here.  Split by -f.	
-	-f | --hooks)
+	--hooks)
 		shift
 		if [ -z "$HOOKS" ]
 		then
@@ -449,8 +462,14 @@ case "$1" in
 		TERMS=$1  			
 	;;
 	
+	# Set a description.
+	-d | --description)
+		shift
+		DESCRIPTION="$1"
+	;;
+
 	# Set a duration.
-	-d | --from)
+	-f | --from)
 		shift
 		DURATION="$1"
 	;;
@@ -479,7 +498,7 @@ case "$1" in
 		GET_LAST=true
 		# Auto chooses last 10.
 		shift
-		if [[ $1 = [0-9] ]]
+		if [[ $1 =~ [0-9] ]]
 		then
 			LAST_LIMIT=$1
 		fi
@@ -550,6 +569,19 @@ case "$1" in
 	-e | --at)
 		shift
 		PROJECT_DIR="$1"	
+	;;
+
+	# Create a superproject.
+	# (A collection of projects)
+	-y|--super)
+		MAKE_NEW_PROJECT=
+		DO_SUPER=true
+	;;
+
+	# List for the above..
+	-z|--consisting-of)
+		shift
+		SUPER_LIST="$1"
 	;;
 
 	# Be verbose.
@@ -674,6 +706,21 @@ then
 	
 fi
 
+# super...
+if [ ! -z "$LIST_ALL" ] && [ ! -z $DO_SUPER ]
+then
+	RES=$($__SQLITE $__DB "SELECT * FROM super LIMIT 1;")
+	if [ -z "$RES" ]
+	then
+		echo "No projects created or added so far with $PROGRAM."
+		echo "How about adding a few with $PROGRAM --new <name>?"
+		exit 1
+	fi
+	
+	$__SQLITE -line $__DB "SELECT * FROM super" 
+	exit
+fi
+
 # Get a list of sites.
 if [ ! -z "$LIST_ALL" ]
 then 
@@ -770,6 +817,44 @@ then
 
 	# Configure your file.
 	$__EDITOR $ALIAS_DIR/${PROJECT_NAME}.sh
+fi
+
+
+# Super
+if [ ! -z "$DO_SUPER" ]
+then
+	# project dir 
+	[ -z "$PROJECT_NAME" ] && echo "No name specified for new super-project." && exit 1
+
+	# project dir 
+	[ -z "$PROJECT_DIR" ] && echo "No project directory specified." && exit 1
+
+	# Create dir...
+	mkdir -pv $PROJECT_DIR
+
+	break_list_by_delim() {
+		mylist=(`printf $1 | sed "s/,/ /g"`)
+		echo ${mylist[@]}		# Return the list all ghetto-style.
+	}
+
+	SUPER_LIST=( $(break_list_by_delim "$SUPER_LIST") )
+
+	# Link each
+	for SUPFILE in ${SUPER_LIST[@]}
+	do
+		INDIV_DIR="$( $__SQLITE $__DB "SELECT project_dir FROM project_description WHERE project_name = '$SUPFILE';" )"
+
+		if [ -d "$INDIV_DIR" ] 
+		then 
+			ln -sv "$INDIV_DIR" "$PROJECT_DIR/$(basename $INDIV_DIR)"
+			$__SQLITE $__DB "INSERT INTO super VALUES ( null, '$SUPFILE', '$PROJECT_NAME', $(date +%s), $(date +%s) );" 	
+		fi
+	done
+	
+	# Add...
+	$__SQLITE $__DB "INSERT INTO project_description VALUES ( null, '$PROJECT_NAME', '${PROJECT_DESC-""}', '${PROJECT_DIR}', $(date +%s), $(date +%s), '${USER_NAME}' );" 	
+
+	exit
 fi
 
 
