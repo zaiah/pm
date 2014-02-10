@@ -487,6 +487,13 @@ case "$1" in
 		shift
 		PROJECT_NAME="$1"
 	;;
+	
+	# Show info on one project that you're pretty sure exists.
+	--info)
+		SHOW_INFO=true
+		shift
+		PROJECT_NAME="$1"
+	;;
 
 	# Get information on all the projects in the database.
 	-l | --list)
@@ -966,4 +973,29 @@ then
 		echo "Option --mass-import must have a directory specified in order to add any new projects."
 		exit 1
 	fi
+fi
+
+if [ ! -z "$SHOW_INFO" ]
+then
+	# Die on no project name.
+	[ -z "$PROJECT_NAME" ]  && {
+		printf "No project name specified.\n" > /dev/stderr
+		exit 1
+	}
+
+	# Perform a query
+	GET_RECORD="$( $__SQLITE -line $__DB "SELECT 
+*
+FROM project_description
+WHERE
+project_name = '$PROJECT_NAME'")"
+
+	# Show the name if any.
+	[ ! -z "$GET_RECORD" ] && {
+		printf "%s" "$GET_RECORD"
+		printf "\n"
+	} || {
+		printf "No project directory found for $PROJECT_NAME" > /dev/stderr
+		exit 1
+	}
 fi
