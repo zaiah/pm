@@ -724,9 +724,11 @@ then
 		exit 1
 	fi
 	
-	$__SQLITE -line $__DB "SELECT * FROM super" 
+	# $__SQLITE -line $__DB "SELECT * FROM super" 
+	$__SQLITE $__DB "SELECT * FROM super" 
 	exit
 fi
+
 
 # Get a list of sites.
 if [ ! -z "$LIST_ALL" ]
@@ -803,10 +805,21 @@ then
 		echo $(date --date="@${TIME_WINDOW}")
 
 		# Pull the projects
-		$__SQLITE -line $__DB "SELECT * FROM project_description WHERE date_last_updated > $TIME_WINDOW;"
+		$__SQLITE $__DB "SELECT * FROM project_description WHERE date_last_updated > $TIME_WINDOW;"
 		
 	else 
-		$__SQLITE -line $__DB "SELECT * FROM project_description;"
+			# "date --date=\@$5" | getline crdate
+			# "date --date=\@$6" | getline moddate
+		$__SQLITE $__DB "SELECT * FROM project_description;" | awk -F '|' '{
+			print "ID:           " $1
+			print "Name:         " $2
+			print "Description:  " $3
+			print "Location:     " $4
+			print "Date Created: " strftime("%a %D %r", $5) 
+			print "Last Modifd:  " strftime("%a %D %r", $6) 
+			print "Created by:   " $7
+			print "\n"
+		}'
 		exit 0
 	fi
 fi
