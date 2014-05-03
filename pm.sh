@@ -926,6 +926,7 @@ then
 
 	# SQL query for last projects.
 	LAST_TIMES=$($__SQLITE $__DB "SELECT 
+id, 
 project_name, 
 project_dir, 
 datetime(date_last_updated,'unixepoch','localtime')
@@ -955,8 +956,14 @@ ORDER BY date_last_updated DESC LIMIT ${LAST_LIMIT-10};")
 	# Finally list in proper order on a terminal.
 	for G in $(seq $(( ${#PTIME[@]} - 1 )) -1 0)
 	do
-		printf ${PNAME[$G]} | awk -F '|' '{ print "\n" $1 "\nLocated at: " $2 "\nWas last modified on: " $3  }'
-		printf "At: ${PTIME[$G]}\n"
+		printf "${PNAME[$G]}\n" | {
+			awk -F '|' '{
+				print "\n"
+				print $2
+				print "Located at:        " $3
+				print "Last modified on:  " $4
+			}'
+		}	
 	done	
 fi 
 
