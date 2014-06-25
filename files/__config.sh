@@ -11,9 +11,9 @@ PROJECTS_DIR="$DIR/projects"
 ARCHIVES_DIR="$DIR/archive"
 ALIAS_DIR="$DIR/aliases"
 HOOKS_DIR="$DIR/hooks"
-	PRE_DIR="$DIR/hooks/pre"
-	POST_DIR="$DIR/hooks/post"
-	PROCESS_DIR="$DIR/hooks/proc"
+PRE_DIR="$DIR/hooks/pre"
+POST_DIR="$DIR/hooks/post"
+PROCESS_DIR="$DIR/hooks/proc"
 DEFAULTS="$DIR/config"
 
 # SQL related

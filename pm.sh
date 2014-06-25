@@ -1,4 +1,9 @@
 #!/bin/bash -
+#------------------------------------------------------
+# pm.sh 
+#
+# A project manager.
+#-----------------------------------------------------#
 #===============================================
 #
 #  FILE:  			pm.sh
@@ -20,20 +25,43 @@
 # the fly.
 #================================================
 
+# Variables.
 PROGRAM=pm
-
-# Constants
 IFS=' 
 '
-
-# Get the settings.
 BINDIR="$(dirname "$(readlink -f $0)")"
-source "$BINDIR/files/__config.sh"
+SQL_FILE="$BINDIR/files/__pm.sql"
+DIR="$HOME/.pm"
+PROJECTS_DIR="$DIR/projects"
+ARCHIVES_DIR="$DIR/archive"
+ALIAS_DIR="$DIR/aliases"
+HOOKS_DIR="$DIR/hooks"
+PRE_DIR="$DIR/hooks/pre"
+POST_DIR="$DIR/hooks/post"
+PROCESS_DIR="$DIR/hooks/proc"
+DEFAULTS="$DIR/config"
+ALIAS_FILE="$ALIAS_DIR/${PROJECT_NAME}.sh" 
+__DB="$DIR/projects.db"
 
-#########################
+
+#LIST=( $(ls "$BINDIR/[a-z]*.sh") )		# Skip configuration files.
+
+# Bashkit
+source "$BINDIR/bashkit/include/litesec.sh"
+source "$BINDIR/bashkit/include/unirand.sh"
+source "$BINDIR/bashkit/include/string.sh"
+source "$BINDIR/bashkit/include/sqlite3.sh"
+source "$BINDIR/bashkit/include/arg.sh"
+source "$BINDIR/bashkit/include/usage.sh"
+
+# ...
+# source "$BINDIR/files/__config.sh"
+
+
 # Usage message.
-#########################
-__USAGE_MSG="
+usage() {
+	STATUS=${1:-0}
+cat << EOF
 Usage: ./project 
 		[ help | -h | --help ] 
 		[ global | add-function | edit-function | remove-function ] 
@@ -41,39 +69,41 @@ Usage: ./project
 		[ -cknor ] [ -t N ] <project-name>
 
 Options:
---first-run                 Run for the first time.
---setup                     Setup globals.
---install <dir>             Install $PROGRAM to <dir>.
---uninstall                 Uninstalls $PROGRAM according to user logged in.
---as <user>                 Run this as a particular user. 
---file-manager <prg>        Use <prg> as a file manager for this project.
--d | --editor               Set an editor when trying to configure.
--f | --hooks                Edit hooks for a certain project.
--p | --progress             Get the progress of a project.  (May use curses)
--m | --modify               Update some project.
--t | --terminals <N>        Use <N> terminals when opening or configuring a 
-                            project.
--c | --configure <name>     Configure project referenced by <name>.
--l | --list                 List all projects.
--? | --last <int>           List last <int> projects that have been worked on.
-                            (Default is 10)
--k | --kill <name>          Kill all open instances of project <name>.
--s | --spawn <int>          Open <int> number of terminal windows.
--n | --new <name>           Create a new project called <name>.
--w | --checklist <name>     Create a new project called <name>.
--r | --remove <name>        Remove project referenced by <name>.
--o | --open <name>          Open project referenced by <name>.
--u | --unregister <name>    Remove project referenced by <name> from $PROGRAM's
-                            database.
--g | --register <name>      Add some project to $PROGRAM's database.
--e | --at <dir>             Create the project at <dir>
--a | --alias <name>	       Create an alias for the project at hand.
--z | --super                Create a collection of projects.  (Links each project 
-                            in a list to the directory that the superproject is in.)
--y | --consisting-of <arg>  List for projects within super project.
--v | --verbose              Be verbose in output.
--h | --help                 Be verbose in output.
-"
+    --first-run            Run for the first time.
+    --setup                Setup globals.
+    --install <dir>        Install $PROGRAM to <dir>.
+    --uninstall            Uninstalls $PROGRAM according to user logged in.
+    --as <user>            Run this as a particular user. 
+    --file-manager <prg>   Use <prg> as a file manager for this project.
+-d, --editor               Set an editor when trying to configure.
+-f, --hooks                Edit hooks for a certain project.
+-p, --progress             Get the progress of a project.  (May use curses)
+-m, --modify               Update some project.
+-t, --terminals <N>        Use <N> terminals when opening or configuring a 
+                           project.
+-c, --configure <name>     Configure project referenced by <name>.
+-l, --list                 List all projects.
+-?, --last <int>           List last <int> projects that have been worked on.
+                           (Default is 10)
+-k, --kill <name>          Kill all open instances of project <name>.
+-s, --spawn <int>          Open <int> number of terminal windows.
+-n, --new <name>           Create a new project called <name>.
+-w, --checklist <name>     Create a new project called <name>.
+-r, --remove <name>        Remove project referenced by <name>.
+-o, --open <name>          Open project referenced by <name>.
+-u, --unregister <name>    Remove project referenced by <name> from $PROGRAM
+                           database.
+-g, --register <name>      Add some project to $PROGRAM's database.
+-e, --at <dir>             Create the project at <dir>
+-a, --alias <name>	      Create an alias for the project at hand.
+-z, --super                Create a collection of projects.  
+-y, --consisting-of <arg>  List for projects within super project.
+-v, --verbose              Be verbose in output.
+-h, --help                 Be verbose in output.
+EOF
+
+	exit $STATUS
+}
 
 
 # __insert_new_record
@@ -189,29 +219,7 @@ make_new_project() {
 		
 		# Set up terminal settings. 
 		# Move to the database eventually.
-		ALIAS_FILE="$ALIAS_DIR/${PROJECT_NAME}.sh" 
-		if [ ! -f "$ALIAS_FILE" ]
-		then
-			echo "source $HOME/.bashrc
-
-# Special parameters for urxvt
-# 
-# Available colors are:
-# green, red, purple, orange, brown, black, white, gray, blue
-# 
-# Also can try #hexShades!
-color=green
-terms=2
-shade=30
-px=11
-
-# Project-specific aliases.
-alias reload=\"source $ALIAS_DIR/${PROJECT_NAME}.sh\"
-
-# Project-specific directories. 
-home=\"$PROJECT_DIR\"
-	" >> $ALIAS_FILE
-		fi
+		[ ! -f "$ALIAS_FILE" ] && generate_alias_file >> $ALIAS_FILE
 	fi
 }
 
